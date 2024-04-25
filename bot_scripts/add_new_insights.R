@@ -5,8 +5,9 @@ library(stringr)
 library(tidytext)
 library(tidyverse)
 
-load("word_vectors.RDS")
+load("models/rusEmb.RData")
 
+# функция получения текста из видео по API
 transcribe <- function(video_id) {
   url <- "https://youtube-transcriptor.p.rapidapi.com/transcript"
   
@@ -35,8 +36,9 @@ transcribe <- function(video_id) {
   return(message_text)
 }
 
+# функция получения инсайтов из текста по API
 get_insights <- function(text) {
-  IAM_TOKEN <- "t1.9euelZqalY2Pk5rHxsaSm8aWksaVmO3rnpWajJvPiZOSlJDOz8iRio-ekJ3l8_csUmtO-e9CcXtk_t3z92wAaU7570Jxe2T-zef1656VmpzMk5GQzZbPlY2TmZfMiZHK7_zF656VmpzMk5GQzZbPlY2TmZfMiZHK.ui792kk2LQf2FM2il5LjOsB_SsSwCPuxc743EibX5mq6C-PKZ99iZYPrh49bern6IG9ZSx-pIg_y86EvZ-BAAA"
+  IAM_TOKEN <- "t1.9euelZqSjI3ImYmRmJGXjZyRmI-YmO3rnpWajJvPiZOSlJDOz8iRio-ekJ3l9PczElhO-e8Gd12b3fT3c0BVTvnvBnddm83n9euelZrLzpTLkY7Gjo-Qi5XKnMuel-_8xeuelZrLzpTLkY7Gjo-Qi5XKnMuelw.uxP4B73RLDHRppon92lXsMyVumwSS-5pku-oE3qIE2LKknntqTj4cx58UxxDqZD0RTTYgnKye1jTI-qjaSuaDw"
   FOLDER_ID <- "b1gml016n03hjg1jadt1"
   
   # Создание JSON-объекта
@@ -50,7 +52,7 @@ get_insights <- function(text) {
     "messages" = list(
       list(
         "role" = "system",
-        "text" = "Найди в тексте инсайты в сфере рекрутмента. Выведи результат на английском языке. Под инсайтами я подразумеваю высказывания в формате Кто-то ушёл откуда-то, кто-то перешёл в другую команду. Выведи только найденные инсайты в виде списка (1., 2., 3. ...) без вводных конструкций, простым текстом не используя спецсимволы."
+        "text" = "Найди в тексте инсайты в сфере рекрутмента. Под инсайтами я подразумеваю высказывания в формате Кто-то ушёл откуда-то, кто-то перешёл в другую команду. Выведи только найденные инсайты в виде списка (1., 2., 3. ...) без вводных конструкций, простым текстом не используя спецсимволы."
       ),
       list(
         "role" = "user",
@@ -82,13 +84,14 @@ get_insights <- function(text) {
   return(alternative_text)
 }
 
+# функция получения эмбеддтнга инсайта с помощью doc2vec алгоритма
 doc2vec <- function(insights) {
-  source("emb.R")
+  source("models/emb.R")
   
   univ_tokens = insights %>% 
     unnest_tokens(output = words, input = text)
   
-  dict = row.names(word_vectors)
+  dict = row.names(embedding_matrix)
   
   univ_tokens = univ_tokens %>% 
     filter(words %in% dict) %>% 
@@ -99,14 +102,14 @@ doc2vec <- function(insights) {
     mutate(emb = str_c(get_embeddings(words), collapse = " ") ) 
   
   univ_embeddings = univ_embeddings %>% 
-    separate(emb, into = as.character(c(1:50)), sep = " ")
+    separate(emb, into = as.character(c(1:300)), sep = " ")
   
   doc_emb = univ_embeddings %>%
     select(-words) %>% 
     group_by(id) %>% 
     mutate_at(vars(-group_cols()), as.numeric) %>% 
     summarise_all(mean) %>%
-    mutate(text = insights$text)
+    left_join(insights %>% select(id, text), by = 'id')
   
   doc_emb_tmp = doc_emb %>% select(-id, -text)
   colnames(doc_emb_tmp) <- paste0("X", seq_len(ncol(doc_emb_tmp)))
@@ -119,7 +122,7 @@ doc2vec <- function(insights) {
 # НАЧАЛО СКРИПТА ---------------------------------------------------------------
 
 # URL на YouTube видео
-url = "https://www.youtube.com/watch?v=dO7nR_NeoU0"
+url = "https://www.youtube.com/watch?v=-af0SERrEms"
 
 if (grepl("v=", url)) {
   video_id <- str_extract(url, "(?<=v=)[^&]+")
@@ -144,7 +147,7 @@ new_insights = data.frame(text = recieved_isights, id = source)
 new_insights2vec = doc2vec(new_insights)
 
 # Добавление новых инсайтов в датасет со всеми инсайтами
-load("insights.RData")
+load("data/insights.RData")
 
 # Перебираем строки таблицы new_insights2vec
 for (i in 1:nrow(new_insights2vec)) {
@@ -163,4 +166,4 @@ sim_matrix_data = sim_matrix_data %>% column_to_rownames("id")
 sim_matrix = lsa::cosine(t(as.matrix(sim_matrix_data)))
 diag(sim_matrix) = 0
 
-save(sim_matrix, insights_table, file = "insights.RData")
+save(sim_matrix, insights_table, file = "data/insights.RData")

@@ -26,6 +26,6 @@ find_close_words <- function(input_word = "paris", n = 5) {
 }
 
 get_embeddings <- function(input_word = "paris"){
-  embeddings = word_vectors[input_word, , drop = FALSE]
+  embeddings = embedding_matrix[input_word, , drop = FALSE]
   return(embeddings)
 }

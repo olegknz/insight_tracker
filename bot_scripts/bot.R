@@ -6,13 +6,13 @@ library(httr)
 library(RSQLite)
 library(dplyr)
 
-con <- dbConnect(SQLite(), "users.db")
+con <- dbConnect(SQLite(), "data/users.db")
 
 updater <- Updater('6996387328:AAHS4H8zjdTJGroQt2QhBxGnjq2JLHUJYcI')
 
 # Рекомендация инсайта новому пользователю
 recommend_new_user = function() {
-  load("insights.RData")
+  load("data/insights.RData")
   
   # получаем случайную строку из датасета с инсайтами
   random_insight <- select(insights_table[sample(nrow(insights_table), 1), ], id, text)
@@ -22,22 +22,22 @@ recommend_new_user = function() {
 
 # Рекомендация инсайта старому пользователю
 recommend_insight = function(id) {
-  load("insights.RData")
+  load("data/insights.RData")
   
   query <- paste0("SELECT * FROM users WHERE user_id = '", id, "'")
   user <- dbGetQuery(con, query)
   
   # если у пользователя есть оценки >= 4 -> рекомендуем похожие инсайты
   if (nrow(user %>% filter(rating >= 4)) > 0) {
-    user = user %>% filter(rating >= 4)
-    simCut = as.matrix(sim_matrix[,user$insight_id])
-    mostSimilar = head(sort(simCut, decreasing = T), n = 5)
+    filtered_user = user %>% filter(rating >= 4)
+    simCut = as.matrix(sim_matrix[,filtered_user$insight_id])
+    mostSimilar = head(sort(simCut, decreasing = T), n = 10)
   # если у пользователя нет хороших оценок -> рекомендуем не похожие на оценненые инсайты
   } else {
-    user = user %>% filter(rating < 4)
-    simCut = as.matrix(sim_matrix[,user$insight_id])
+    filtered_user = user %>% filter(rating < 4)
+    simCut = as.matrix(sim_matrix[,filtered_user$insight_id])
     mostSimilar = sort(simCut, decreasing = F)
-    mostSimilar = mostSimilar[mostSimilar > 0] %>% head(5)
+    mostSimilar = mostSimilar[mostSimilar > 0] %>% head(10)
   }
   
   # начинаем рекомендацию
@@ -53,6 +53,7 @@ recommend_insight = function(id) {
     left_join(insights_table) %>% 
     select(id, text, similar) %>% 
     arrange(-similar) %>% 
+    filter(similar != 1 & !(id %in% user$insight_id)) %>%
     head(1) %>%
     select(id, text)
   
@@ -107,7 +108,8 @@ send_insight <- function(bot, update) {
   
   # Формируем ссылку на YouTube видео (источник инсайта)
   parts <- strsplit(recomendation$id, "_")[[1]]
-  video_id <- parts[1]
+  video_id_parts <- parts[-length(parts)]
+  video_id <- paste(video_id_parts, collapse = "_")
   youtube_link <- paste("https://www.youtube.com/watch?v=", video_id, sep = "")
   
   # создаём клавиатуру для получения оценки
