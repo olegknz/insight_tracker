@@ -107,29 +107,38 @@ send_insight <- function(bot, update) {
   }
   
   # Формируем ссылку на YouTube видео (источник инсайта)
-  parts <- strsplit(recomendation$id, "_")[[1]]
-  video_id_parts <- parts[-length(parts)]
-  video_id <- paste(video_id_parts, collapse = "_")
-  youtube_link <- paste("https://www.youtube.com/watch?v=", video_id, sep = "")
-  
-  # создаём клавиатуру для получения оценки
-  IKM <- InlineKeyboardMarkup(
-    inline_keyboard = list(
-      list(
-        InlineKeyboardButton("1", callback_data = paste(recomendation$id, '1')),
-        InlineKeyboardButton("2", callback_data = paste(recomendation$id, '2')),
-        InlineKeyboardButton("3", callback_data = paste(recomendation$id, '3')),
-        InlineKeyboardButton("4", callback_data = paste(recomendation$id, '4')),
-        InlineKeyboardButton("5", callback_data = paste(recomendation$id, '5'))
+  if (nrow(recomendation) == 0) {
+    # Отправка сообщения
+    bot$sendMessage(update$message$chat_id, 
+                    text = "К сожалению, инсайты для тебя закончились",
+                    parse_mode = NULL)
+  }
+  else {
+    parts <- strsplit(recomendation$id, "_")[[1]]
+    video_id_parts <- parts[-length(parts)]
+    video_id <- paste(video_id_parts, collapse = "_")
+    youtube_link <- paste("https://www.youtube.com/watch?v=", video_id, sep = "")
+    
+    # создаём клавиатуру для получения оценки
+    IKM <- InlineKeyboardMarkup(
+      inline_keyboard = list(
+        list(
+          InlineKeyboardButton("1", callback_data = paste(recomendation$id, '1')),
+          InlineKeyboardButton("2", callback_data = paste(recomendation$id, '2')),
+          InlineKeyboardButton("3", callback_data = paste(recomendation$id, '3')),
+          InlineKeyboardButton("4", callback_data = paste(recomendation$id, '4')),
+          InlineKeyboardButton("5", callback_data = paste(recomendation$id, '5'))
+        )
       )
     )
-  )
+    
+    # Отправка сообщения
+    bot$sendMessage(update$message$chat_id, 
+                    text = paste(recomendation$text, youtube_link, sep = "\n\n"),
+                    parse_mode = NULL,
+                    reply_markup = IKM)
+  }
   
-  # Отправка сообщения
-  bot$sendMessage(update$message$chat_id, 
-                  text = paste(recomendation$text, youtube_link, sep = "\n\n"),
-                  parse_mode = NULL,
-                  reply_markup = IKM)
 }
 
 # Обработчик оценки инсайта

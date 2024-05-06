@@ -38,7 +38,7 @@ transcribe <- function(video_id) {
 
 # функция получения инсайтов из текста по API
 get_insights <- function(text) {
-  IAM_TOKEN <- "t1.9euelZqSjI3ImYmRmJGXjZyRmI-YmO3rnpWajJvPiZOSlJDOz8iRio-ekJ3l9PczElhO-e8Gd12b3fT3c0BVTvnvBnddm83n9euelZrLzpTLkY7Gjo-Qi5XKnMuel-_8xeuelZrLzpTLkY7Gjo-Qi5XKnMuelw.uxP4B73RLDHRppon92lXsMyVumwSS-5pku-oE3qIE2LKknntqTj4cx58UxxDqZD0RTTYgnKye1jTI-qjaSuaDw"
+  IAM_TOKEN <- "t1.9euelZqVjI6bl56Wm5SOmpKdisuXlO3rnpWajJvPiZOSlJDOz8iRio-ekJ3l8_cVayFO-e8Ja3J7_d3z91UZH0757wlrcnv9zef1656VmpKSzJeSjIuKjcqTy8qWko_N7_zF656VmpKSzJeSjIuKjcqTy8qWko_N.NK-UqNkLqWRGUCzG90_RoIY-1va1Rcw4fYVqRkqq6rb2ZIu1x52FP5bJpVeG1T4vZxqextP9TBiS1oeyW2k3Dw"
   FOLDER_ID <- "b1gml016n03hjg1jadt1"
   
   # Создание JSON-объекта
