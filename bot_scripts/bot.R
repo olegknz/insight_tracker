@@ -74,20 +74,23 @@ check_user <- function(user_id) {
 
 # Обработчик команды /start (начало использования бота)
 start <- function(bot, update) {
-  user_id <- update$message$from$id
+  user_id <- update$message$from$username
+  
+  # клавиатура для получения инсайта
+  RKM <- ReplyKeyboardMarkup(
+    keyboard = list(
+      list(KeyboardButton("Получить инсайт"))
+    ),
+    resize_keyboard = TRUE,
+    one_time_keyboard = FALSE
+  )
+  
   if (check_user(user_id)) {
     bot$sendMessage(update$message$chat_id,
                     text = "Привет! Похоже вы уже использовали нашего бота.\n\nПродолжим?",
-                    parse_mode = NULL)
+                    parse_mode = NULL,
+                    reply_markup = RKM)
   } else {
-    # клавиатура для получения первого инсайта
-    RKM <- ReplyKeyboardMarkup(
-      keyboard = list(
-        list(KeyboardButton("Получить инсайт"))
-      ),
-      resize_keyboard = TRUE,
-      one_time_keyboard = FALSE
-    )
     bot$sendMessage(update$message$chat_id,
                     text = "Добро пожаловать! Этот бот позволит вам отслеживать свежие инсайты в сфере рекрутмента\n\nНачнём?",
                     parse_mode = NULL,
@@ -174,6 +177,22 @@ add_insight_rating <- function(bot, update) {
   bot$answerCallbackQuery(callback_query_id = update$callback_query$id) 
 }
 
+# добавление новых инсайтов (только для админов)
+add_new_insight <- function(bot, update, args) {
+  user_id <- update$message$from$username
+  
+  # проверям права пользователя
+  query <- paste0("select * from permissions where user_id = '", user_id, "'")
+  result <- dbGetQuery(con, query)
+  if (nrow(result) > 0 && 'admin' %in% result$permisson) {
+    url = args[1]
+    
+    source("bot_scripts/add_new_insights.R")
+    
+    main(url)
+  }
+}
+
 MessageFilters$get_insight <- BaseFilter(function(message) {
     # проверяем текст сообщения
     message$text == "Получить инсайт"
@@ -182,17 +201,18 @@ MessageFilters$get_insight <- BaseFilter(function(message) {
 
 # hi_hendler <- CommandHandler('hi', say_hello)
 # summary_hendler <- CommandHandler('summary', send_summary, pass_args = TRUE)
-# parse_hendler <- CommandHandler('parse', parse, pass_args = TRUE)
 # test_hendler <- CommandHandler('test', test)
 
 start_handler <- CommandHandler('start', start)
+add_hendler <- CommandHandler('add', add_new_insight, pass_args = TRUE)
 firstInsight_handler <- MessageHandler(send_insight, filters = MessageFilters$get_insight)
 insight_rating_handler <- CallbackQueryHandler(add_insight_rating)
 
 updater <- updater + 
             start_handler +
             firstInsight_handler +
-            insight_rating_handler
+            insight_rating_handler +
+            add_hendler
 
 updater$start_polling()
 
