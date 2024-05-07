@@ -1,4 +1,3 @@
-library(text2vec)
 find_close_words <- function(input_word = "paris", n = 5) {
   # matrix input
   if (is.matrix(input_word)) {

@@ -1,5 +1,4 @@
 library(telegram.bot)
-library(httr2)
 library(jsonlite)
 library(stringr)
 library(httr)
@@ -32,7 +31,7 @@ recommend_insight = function(id) {
     filtered_user = user %>% filter(rating >= 4)
     simCut = as.matrix(sim_matrix[,filtered_user$insight_id])
     mostSimilar = head(sort(simCut, decreasing = T), n = 10)
-  # если у пользователя нет хороших оценок -> рекомендуем не похожие на оценненые инсайты
+    # если у пользователя нет хороших оценок -> рекомендуем не похожие на оценненые инсайты
   } else {
     filtered_user = user %>% filter(rating < 4)
     simCut = as.matrix(sim_matrix[,filtered_user$insight_id])
@@ -146,7 +145,7 @@ send_insight <- function(bot, update) {
 
 # Обработчик оценки инсайта
 add_insight_rating <- function(bot, update) {
-
+  
   # полученные данные с кнопки
   data <- update$callback_query$data
   
@@ -188,15 +187,14 @@ add_new_insight <- function(bot, update, args) {
     url = args[1]
     
     source("bot_scripts/add_new_insights.R")
-    
     main(url)
   }
 }
 
 MessageFilters$get_insight <- BaseFilter(function(message) {
-    # проверяем текст сообщения
-    message$text == "Получить инсайт"
-  }
+  # проверяем текст сообщения
+  message$text == "Получить инсайт"
+}
 )
 
 # hi_hendler <- CommandHandler('hi', say_hello)
@@ -209,10 +207,10 @@ firstInsight_handler <- MessageHandler(send_insight, filters = MessageFilters$ge
 insight_rating_handler <- CallbackQueryHandler(add_insight_rating)
 
 updater <- updater + 
-            start_handler +
-            firstInsight_handler +
-            insight_rating_handler +
-            add_hendler
+  start_handler +
+  firstInsight_handler +
+  insight_rating_handler +
+  add_hendler
 
 updater$start_polling()
 

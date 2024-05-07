@@ -1,9 +1,8 @@
 library(httr)
 library(jsonlite)
-library(text2vec)
 library(stringr)
 library(tidytext)
-library(tidyverse)
+library(tidyr)
 
 load("models/rusEmb.RData")
 
@@ -90,6 +89,7 @@ get_insights <- function(text) {
 doc2vec <- function(insights) {
   source("models/emb.R")
   
+  print(insights)
   univ_tokens = insights %>% 
     unnest_tokens(output = words, input = text)
   
@@ -135,16 +135,18 @@ main <- function(url) {
   
   # Получаем инсайты
   recieved_isights = get_insights(substr(text, start = 1, stop = 8000))
-  # Обрабатываем полученные инсайты формируя список'
-  print(recieved_isights)
+  # Обрабатываем полученные инсайты формируя список
   recieved_isights <- Filter(function(x) nchar(x) > 0, strsplit(recieved_isights, "\n")[[1]])
   recieved_isights <- gsub("^\\d+\\.\\s+|\\t", "", recieved_isights)
+  recieved_isights <- gsub("«", "", recieved_isights)
+  recieved_isights <- gsub("»", "", recieved_isights)
   
   # Даём каждому инсайту его уникальный ID в формате {video_id}_{insight_number}
   source <- paste(video_id, seq_along(recieved_isights), sep = "_")
   
   # Получение doc2vec формата для инсайтов
   new_insights = data.frame(text = recieved_isights, id = source)
+  new_insights$text = as.character(new_insights$text)
   new_insights2vec = doc2vec(new_insights)
   
   # Добавление новых инсайтов в датасет со всеми инсайтами
@@ -162,11 +164,11 @@ main <- function(url) {
   }
   
   sim_matrix_data = insights_table %>% select(-text)
-  rownames(sim_matrix_data) = NULL
-  sim_matrix_data = sim_matrix_data %>% column_to_rownames("id")
+  rownames(sim_matrix_data) = sim_matrix_data$id
+  sim_matrix_data = sim_matrix_data %>% select(-id)
   sim_matrix = lsa::cosine(t(as.matrix(sim_matrix_data)))
   diag(sim_matrix) = 0
   
   save(sim_matrix, insights_table, file = "data/insights.RData")
 }
-  
+
