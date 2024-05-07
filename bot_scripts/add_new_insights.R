@@ -38,7 +38,9 @@ transcribe <- function(video_id) {
 
 # функция получения инсайтов из текста по API
 get_insights <- function(text) {
-  IAM_TOKEN <- "t1.9euelZqVjI6bl56Wm5SOmpKdisuXlO3rnpWajJvPiZOSlJDOz8iRio-ekJ3l8_cVayFO-e8Ja3J7_d3z91UZH0757wlrcnv9zef1656VmpKSzJeSjIuKjcqTy8qWko_N7_zF656VmpKSzJeSjIuKjcqTy8qWko_N.NK-UqNkLqWRGUCzG90_RoIY-1va1Rcw4fYVqRkqq6rb2ZIu1x52FP5bJpVeG1T4vZxqextP9TBiS1oeyW2k3Dw"
+  #IAM_TOKEN <- "t1.9euelZrGnozIyo7Pl5LOyZnOzZzPi-3rnpWajJvPiZOSlJDOz8iRio-ekJ3l8_cfXhhO-e8mVx8u_d3z918MFk757yZXHy79zef1656VmsnNyIySypOdz5GOi8_IipuX7_zF656VmsnNyIySypOdz5GOi8_IipuX.CbxSd6EWk2FqXf-5JzHg-Aj84D5JItxz7d_ouV-gjGulsg5tqbBDb4lIGwRJVlKZ_IMcEN3P7GuNJc-jk6gKDA"
+  source("bot_scripts/get_IAM_token.R")
+  IAM_TOKEN <- get_token()
   FOLDER_ID <- "b1gml016n03hjg1jadt1"
   
   # Создание JSON-объекта
@@ -121,49 +123,50 @@ doc2vec <- function(insights) {
 
 # НАЧАЛО СКРИПТА ---------------------------------------------------------------
 
-# URL на YouTube видео
-url = "https://www.youtube.com/watch?v=-af0SERrEms"
-
-if (grepl("v=", url)) {
-  video_id <- str_extract(url, "(?<=v=)[^&]+")
-} else {
-  video_id <- url
-}
-
-# Получаем текст из видео
-text = transcribe(video_id)
-
-# Получаем инсайты
-recieved_isights = get_insights(substr(text, start = 1, stop = 8000))
-# Обрабатываем полученные инсайты формируя список
-recieved_isights <- Filter(function(x) nchar(x) > 0, strsplit(recieved_isights, "\n")[[1]])
-recieved_isights <- gsub("^\\d+\\.\\s+|\\t", "", recieved_isights)
-
-# Даём каждому инсайту его уникальный ID в формате {video_id}_{insight_number}
-source <- paste(video_id, seq_along(recieved_isights), sep = "_")
-
-# Получение doc2vec формата для инсайтов
-new_insights = data.frame(text = recieved_isights, id = source)
-new_insights2vec = doc2vec(new_insights)
-
-# Добавление новых инсайтов в датасет со всеми инсайтами
-load("data/insights.RData")
-
-# Перебираем строки таблицы new_insights2vec
-for (i in 1:nrow(new_insights2vec)) {
-  new_id <- new_insights2vec$id[i]
-  
-  # Проверяем, есть ли такой id в основной таблице
-  if (!(new_id %in% insights_table$id)) {
-    # Если нет, добавляем строку из new_insights2vec в основную таблицу
-    insights_table <- rbind(insights_table, new_insights2vec[i, ])
+main <- function(url) {
+  if (grepl("v=", url)) {
+    video_id <- str_extract(url, "(?<=v=)[^&]+")
+  } else {
+    video_id <- url
   }
+  
+  # Получаем текст из видео
+  text = transcribe(video_id)
+  
+  # Получаем инсайты
+  recieved_isights = get_insights(substr(text, start = 1, stop = 8000))
+  # Обрабатываем полученные инсайты формируя список'
+  print(recieved_isights)
+  recieved_isights <- Filter(function(x) nchar(x) > 0, strsplit(recieved_isights, "\n")[[1]])
+  recieved_isights <- gsub("^\\d+\\.\\s+|\\t", "", recieved_isights)
+  
+  # Даём каждому инсайту его уникальный ID в формате {video_id}_{insight_number}
+  source <- paste(video_id, seq_along(recieved_isights), sep = "_")
+  
+  # Получение doc2vec формата для инсайтов
+  new_insights = data.frame(text = recieved_isights, id = source)
+  new_insights2vec = doc2vec(new_insights)
+  
+  # Добавление новых инсайтов в датасет со всеми инсайтами
+  load("data/insights.RData")
+  
+  # Перебираем строки таблицы new_insights2vec
+  for (i in 1:nrow(new_insights2vec)) {
+    new_id <- new_insights2vec$id[i]
+    
+    # Проверяем, есть ли такой id в основной таблице
+    if (!(new_id %in% insights_table$id)) {
+      # Если нет, добавляем строку из new_insights2vec в основную таблицу
+      insights_table <- rbind(insights_table, new_insights2vec[i, ])
+    }
+  }
+  
+  sim_matrix_data = insights_table %>% select(-text)
+  rownames(sim_matrix_data) = NULL
+  sim_matrix_data = sim_matrix_data %>% column_to_rownames("id")
+  sim_matrix = lsa::cosine(t(as.matrix(sim_matrix_data)))
+  diag(sim_matrix) = 0
+  
+  save(sim_matrix, insights_table, file = "data/insights.RData")
 }
-
-sim_matrix_data = insights_table %>% select(-text)
-rownames(sim_matrix_data) = NULL
-sim_matrix_data = sim_matrix_data %>% column_to_rownames("id")
-sim_matrix = lsa::cosine(t(as.matrix(sim_matrix_data)))
-diag(sim_matrix) = 0
-
-save(sim_matrix, insights_table, file = "data/insights.RData")
+  
