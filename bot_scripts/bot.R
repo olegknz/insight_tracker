@@ -6,7 +6,6 @@ library(RSQLite)
 library(dplyr)
 
 updater <- Updater('6996387328:AAHS4H8zjdTJGroQt2QhBxGnjq2JLHUJYcI')
-load("~/InsightTracker_bot/data/insights.RData")
 
 # Рекомендация инсайта новому пользователю
 recommend_new_user = function() {
@@ -20,7 +19,7 @@ recommend_new_user = function() {
 
 # Рекомендация инсайта старому пользователю
 recommend_insight = function(id) {
-  # load("~/InsightTracker_bot/data/insights.RData")
+  load("~/InsightTracker_bot/data/insights.RData")
   con_db <- dbConnect(SQLite(), "data/users.db")
   
   query <- paste0("SELECT * FROM users WHERE user_id = '", id, "'")
