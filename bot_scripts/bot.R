@@ -5,9 +5,8 @@ library(httr)
 library(RSQLite)
 library(dplyr)
 
-con <- dbConnect(SQLite(), "data/users.db")
-
 updater <- Updater('6996387328:AAHS4H8zjdTJGroQt2QhBxGnjq2JLHUJYcI')
+load("~/InsightTracker_bot/data/insights.RData")
 
 # Рекомендация инсайта новому пользователю
 recommend_new_user = function() {
@@ -21,10 +20,13 @@ recommend_new_user = function() {
 
 # Рекомендация инсайта старому пользователю
 recommend_insight = function(id) {
-  load("data/insights.RData")
+  # load("~/InsightTracker_bot/data/insights.RData")
+  con_db <- dbConnect(SQLite(), "data/users.db")
   
   query <- paste0("SELECT * FROM users WHERE user_id = '", id, "'")
-  user <- dbGetQuery(con, query)
+  user <- dbGetQuery(con_db, query)
+  
+  dbDisconnect(con_db)
   
   # если у пользователя есть оценки >= 4 -> рекомендуем похожие инсайты
   if (nrow(user %>% filter(rating >= 4)) > 0) {
@@ -49,20 +51,25 @@ recommend_insight = function(id) {
   
   # выбор только одного инсайта из рекомедации
   recommendation = mostSimilar %>% 
-    left_join(insights_table) %>% 
-    select(id, text, similar) %>% 
-    arrange(-similar) %>% 
-    filter(similar != 1 & !(id %in% user$insight_id)) %>%
+    dplyr::left_join(insights_table, by = 'id') %>% 
+    dplyr::select(id, text, similar) %>% 
+    dplyr::arrange(-similar) %>% 
+    dplyr::filter(similar != 1 & !(id %in% user$insight_id)) %>%
     head(1) %>%
-    select(id, text)
+    dplyr::select(id, text)
   
   return(recommendation)
 }
 
 # Функция для проверки, существует ли пользователь в базе данных
 check_user <- function(user_id) {
+  con_db <- dbConnect(SQLite(), "data/users.db")
+  
   query <- paste0("SELECT COUNT(*) FROM users WHERE user_id = '", user_id, "'")
-  result <- dbGetQuery(con, query)
+  result <- dbGetQuery(con_db, query)
+  
+  dbDisconnect(con_db)
+  
   # Если есть записи в таблице юзеров с данным id
   if (result[[1]] > 0) {
     return(TRUE)
@@ -145,6 +152,7 @@ send_insight <- function(bot, update) {
 
 # Обработчик оценки инсайта
 add_insight_rating <- function(bot, update) {
+  con_db <- dbConnect(SQLite(), "data/users.db")
   
   # полученные данные с кнопки
   data <- update$callback_query$data
@@ -158,12 +166,12 @@ add_insight_rating <- function(bot, update) {
   
   # Проверяем, существует ли уже запись с данным user_id и insight_id
   query_check <- paste0("SELECT COUNT(*) FROM users WHERE user_id = '", uname, "' AND insight_id = '", insight_id, "'")
-  result <- dbGetQuery(con, query_check)
+  result <- dbGetQuery(con_db, query_check)
   
   if (result[[1]] == 0) {
     # Если запись не существует, добавляем новую запись
     query_insert <- paste0("INSERT INTO users (user_id, insight_id, rating) VALUES ('", uname, "', '", insight_id, "', ", rating, ")")
-    dbSendQuery(con, query_insert)
+    dbSendQuery(con_db, query_insert)
     bot$sendMessage(chat_id = update$from_chat_id(),
                     text = "Ваша оценка записана")
   } else {
@@ -174,21 +182,27 @@ add_insight_rating <- function(bot, update) {
   
   # сообщаем боту, что запрос с кнопки принят
   bot$answerCallbackQuery(callback_query_id = update$callback_query$id) 
+  
+  dbDisconnect(con_db)
 }
 
 # добавление новых инсайтов (только для админов)
 add_new_insight <- function(bot, update, args) {
+  con_db <- dbConnect(SQLite(), "data/users.db")
+  
   user_id <- update$message$from$username
   
   # проверям права пользователя
   query <- paste0("select * from permissions where user_id = '", user_id, "'")
-  result <- dbGetQuery(con, query)
+  result <- dbGetQuery(con_db, query)
   if (nrow(result) > 0 && 'admin' %in% result$permisson) {
     url = args[1]
     
     source("bot_scripts/add_new_insights.R")
     main(url)
   }
+  
+  dbDisconnect(con_db)
 }
 
 MessageFilters$get_insight <- BaseFilter(function(message) {
