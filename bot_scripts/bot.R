@@ -54,8 +54,11 @@ recommend_insight = function(id) {
     dplyr::select(id, text, similar) %>% 
     dplyr::arrange(-similar) %>% 
     dplyr::filter(similar != 1 & !(id %in% user$insight_id)) %>%
-    sample_n(1) %>%
     dplyr::select(id, text)
+  
+  if (nrow(recommendation) > 0) {
+    recommendation = recommendation %>% sample_n(1)
+  }
   
   return(recommendation)
 }
