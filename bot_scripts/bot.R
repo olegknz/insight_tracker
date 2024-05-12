@@ -31,13 +31,13 @@ recommend_insight = function(id) {
   if (nrow(user %>% filter(rating >= 4)) > 0) {
     filtered_user = user %>% filter(rating >= 4)
     simCut = as.matrix(sim_matrix[,filtered_user$insight_id])
-    mostSimilar = head(sort(simCut, decreasing = T), n = 10)
+    mostSimilar = head(sort(simCut, decreasing = T), n = 20)
     # если у пользователя нет хороших оценок -> рекомендуем не похожие на оценненые инсайты
   } else {
     filtered_user = user %>% filter(rating < 4)
     simCut = as.matrix(sim_matrix[,filtered_user$insight_id])
     mostSimilar = sort(simCut, decreasing = F)
-    mostSimilar = mostSimilar[mostSimilar > 0] %>% head(10)
+    mostSimilar = mostSimilar[mostSimilar > 0] %>% head(20)
   }
   
   # начинаем рекомендацию
@@ -54,7 +54,7 @@ recommend_insight = function(id) {
     dplyr::select(id, text, similar) %>% 
     dplyr::arrange(-similar) %>% 
     dplyr::filter(similar != 1 & !(id %in% user$insight_id)) %>%
-    head(1) %>%
+    sample_n(1) %>%
     dplyr::select(id, text)
   
   return(recommendation)
@@ -199,6 +199,9 @@ add_new_insight <- function(bot, update, args) {
     
     source("bot_scripts/add_new_insights.R")
     main(url)
+    
+    bot$sendMessage(chat_id = update$from_chat_id(),
+                    text = "Новые инсайты добавлены.")
   }
   
   dbDisconnect(con_db)
